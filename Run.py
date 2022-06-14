@@ -7,8 +7,9 @@ from mylib import config, thread
 import time, csv
 import numpy as np
 import argparse, imutils
-import time, dlib, cv2, datetime
+import time, cv2, datetime
 from itertools import zip_longest
+#import dlib
 
 t0 = time.time()
 
@@ -23,9 +24,9 @@ def run():
 		help="path to optional input video file")
 	ap.add_argument("-o", "--output", type=str,
 		help="path to optional output video file")
-	ap.add_argument("-c", "--confidence", type=float, default=0.4,
+	ap.add_argument("-c", "--confidence", type=float, default=0.7,
 		help="minimum probability to filter weak detections")
-	ap.add_argument("-s", "--skip-frames", type=int, default=20,
+	ap.add_argument("-s", "--skip-frames", type=int, default=30,
 		help="# of skip frames between detections")
 	args = vars(ap.parse_args())
 
@@ -154,9 +155,12 @@ def run():
 					# construct a dlib rectangle object from the bounding
 					# box coordinates and then start the dlib correlation
 					# tracker
-					tracker = dlib.correlation_tracker()
-					rect = dlib.rectangle(startX, startY, endX, endY)
-					tracker.start_track(rgb, rect)
+					# tracker = dlib.correlation_tracker()
+					# rect = dlib.rectangle(startX, startY, endX, endY)
+					# tracker.start_track(rgb, rect)
+
+					tracker = cv2.TrackerKCF_create()
+					tracker.init(rgb, (startX, startY, endX-startX, endY-startY))
 
 					# add the tracker to our list of trackers so we can
 					# utilize it during skip frames
@@ -172,17 +176,27 @@ def run():
 				status = "Tracking"
 
 				# update the tracker and grab the updated position
-				tracker.update(rgb)
-				pos = tracker.get_position()
+				# tracker.update(rgb)
+				# pos = tracker.get_position()
 
-				# unpack the position object
-				startX = int(pos.left())
-				startY = int(pos.top())
-				endX = int(pos.right())
-				endY = int(pos.bottom())
+				# # unpack the position object
+				# startX = int(pos.left())
+				# startY = int(pos.top())
+				# endX = int(pos.right())
+				# endY = int(pos.bottom())
+				(success, box) = tracker.update(rgb)
+				if(success):
+					(x, y, w, h) = [int(v) for v in box]
 
-				# add the bounding box coordinates to the rectangles list
-				rects.append((startX, startY, endX, endY))
+					startX = x
+					startY = y
+					endX = x + w
+					endY = y + h
+
+					# add the bounding box coordinates to the rectangles list
+					rects.append((startX, startY, endX, endY))
+
+
 
 		# draw a horizontal line in the center of the frame -- once an
 		# object crosses this line we will determine whether they were
